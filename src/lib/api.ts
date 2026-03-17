@@ -111,7 +111,12 @@ export const empleadosApi = {
     return data.results ?? data
   },
   actualizar: async (id: string, datos: Partial<Empleado>): Promise<Empleado> => {
-    const { data } = await api.patch(`/empleados/${id}/`, datos)
+    // Si datos.roles existe, asegúrate de enviarlo como array
+    const payload = { ...datos }
+    if (payload.roles && !Array.isArray(payload.roles)) {
+      payload.roles = [payload.roles]
+    }
+    const { data } = await api.patch(`/empleados/${id}/`, payload)
     return data
   },
   crear: async (datos: Partial<Empleado>): Promise<Empleado> => {

@@ -24,7 +24,7 @@ export default function EstadisticasPage() {
 
   // Verificar permisos
   useEffect(() => {
-    if (empleado && !['hr', 'admin'].includes(empleado.role)) {
+    if (empleado && !empleado.roles.some(r => r.slug === 'hr' || r.slug === 'admin')) {
       router.push('/')
     }
   }, [empleado, router])
@@ -32,10 +32,10 @@ export default function EstadisticasPage() {
   const { data: stats, isLoading, error } = useQuery<EstadisticasRRHH>({
     queryKey: ['estadisticas'],
     queryFn: empleadosApi.estadisticas,
-    enabled: !!empleado && ['hr', 'admin'].includes(empleado.role),
+    enabled: !!empleado && empleado.roles.some(r => r.slug === 'hr' || r.slug === 'admin'),
   })
 
-  if (!empleado || !['hr', 'admin'].includes(empleado.role)) {
+  if (!empleado || !empleado.roles.some(r => r.slug === 'hr' || r.slug === 'admin')) {
     return null
   }
 

@@ -11,6 +11,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { empleadosApi } from '@/lib/api'
 import type { Empleado } from '@/types'
+import ModalAsignarRoles from '@/components/modals/ModalAsignarRoles'
 
 const ROLES = [
   { value: '', label: 'Todos los roles' },
@@ -20,17 +21,20 @@ const ROLES = [
   { value: 'admin', label: 'Administrador' },
 ]
 
-const ROLE_CONFIG: Record<string, { label: string; color: string }> = {
-  employee:   { label: 'Empleado', color: 'bg-blue-100 text-blue-700' },
-  supervisor: { label: 'Supervisor', color: 'bg-green-100 text-green-700' },
-  hr:         { label: 'RRHH', color: 'bg-purple-100 text-purple-700' },
-  admin:      { label: 'Admin', color: 'bg-red-100 text-red-700' },
+// Configuración de colores y etiquetas para roles
+export const ROLE_CONFIG = {
+  admin: { label: 'Administrador', color: 'bg-blue-100 text-blue-700' },
+  rrhh: { label: 'RRHH', color: 'bg-green-100 text-green-700' },
+  empleado: { label: 'Empleado', color: 'bg-gray-100 text-gray-700' },
+  supervisor: { label: 'Supervisor', color: 'bg-purple-100 text-purple-700' },
 }
 
 export default function EmpleadosAdminPage() {
   const [filtroRol, setFiltroRol] = useState('')
   const [filtroBusqueda, setFiltroBusqueda] = useState('')
   const [filtroDepartamento, setFiltroDepartamento] = useState('')
+  const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<Empleado | null>(null)
+  const [guardandoRoles, setGuardandoRoles] = useState(false)
 
   const { data: empleados = [], isLoading } = useQuery({
     queryKey: ['empleados-admin'],
@@ -42,7 +46,7 @@ export default function EmpleadosAdminPage() {
 
   // Filtrar empleados
   const empleadosFiltrados = empleados.filter((emp) => {
-    const matchRol = !filtroRol || emp.role === filtroRol
+    const matchRol = !filtroRol || (Array.isArray(emp.roles) && emp.roles.includes(filtroRol))
     const matchDept = !filtroDepartamento || emp.departamento === filtroDepartamento
     const matchBusqueda = !filtroBusqueda || 
       emp.nombre?.toLowerCase().includes(filtroBusqueda.toLowerCase()) ||
@@ -54,6 +58,21 @@ export default function EmpleadosAdminPage() {
   const fmt = (d: string) => {
     try { return format(new Date(d), 'dd/MM/yyyy', { locale: es }) }
     catch { return d }
+  }
+
+  // Guardar roles
+  const handleGuardarRoles = async (roles: string[]) => {
+    if (!empleadoSeleccionado) return
+    setGuardandoRoles(true)
+    try {
+      // Actualizar roles en backend
+      await empleadosApi.actualizar(empleadoSeleccionado.id, { roles })
+      setEmpleadoSeleccionado(null)
+    } catch {
+      alert('Error al guardar los roles')
+    } finally {
+      setGuardandoRoles(false)
+    }
   }
 
   return (
@@ -205,11 +224,9 @@ export default function EmpleadosAdminPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {empleadosFiltrados.map((emp) => {
-                  const roleConfig = ROLE_CONFIG[emp.role] || { label: emp.role, color: 'bg-gray-100 text-gray-700' }
                   const diasAltos = emp.dias_pendientes > 20
-                  
                   return (
-                    <tr key={emp.id} className="hover:bg-gray-50">
+                    <tr key={emp.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setEmpleadoSeleccionado(emp)}>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold">
@@ -261,6 +278,13 @@ export default function EmpleadosAdminPage() {
           </div>
         )}
       </div>
+      {empleadoSeleccionado && (
+        <ModalAsignarRoles
+          empleado={empleadoSeleccionado}
+          onClose={() => setEmpleadoSeleccionado(null)}
+          onSave={handleGuardarRoles}
+        />
+      )}
     </div>
   )
 }

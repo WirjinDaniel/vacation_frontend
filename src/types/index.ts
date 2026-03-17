@@ -25,7 +25,7 @@ export interface Empleado {
   puede_solicitar_vacaciones: boolean
   dias_pendientes: number
   email: string
-  role: Rol
+  roles: Rol[]
   supervisor?: string
   supervisor_nombre?: string
 }
