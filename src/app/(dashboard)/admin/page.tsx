@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Download, Calendar } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { solicitudesApi } from '@/lib/api'
@@ -14,24 +14,42 @@ import ModalAprobacionRRHH from '@/components/modals/ModalAprobacionRRHH'
 import ModalRechazo from '@/components/modals/ModalRechazo'
 import ReporteSolicitud from '@/components/reports/ReporteSolicitud'
 
+// ── Helper: verificar roles ────────────────────────────────────────────────
+// empleado.roles es un array: ['empleado', 'hr', 'admin']
+const tieneRol = (empleado: any, ...keys: string[]) =>
+  Array.isArray(empleado?.roles) && keys.some(k => empleado.roles.includes(k))
+
 // Configuración de estados
-const ESTADO_CONFIG = {
+const ESTADO_CONFIG: Record<string, { label: string; color: string }> = {
   pendiente_supervisor: { label: 'Pendiente Supervisor', color: 'bg-orange-100 text-orange-700' },
-  pendiente_rrhh:       { label: 'Pendiente RRHH', color: 'bg-yellow-100 text-yellow-700' },
-  aprobada:             { label: 'Aprobada', color: 'bg-green-100 text-green-700' },
-  rechazada:            { label: 'Rechazada', color: 'bg-red-100 text-red-700' },
+  pendiente_rrhh:       { label: 'Pendiente RRHH',       color: 'bg-yellow-100 text-yellow-700' },
+  aprobada:             { label: 'Aprobada',              color: 'bg-green-100 text-green-700'  },
+  rechazada:            { label: 'Rechazada',             color: 'bg-red-100 text-red-700'      },
 }
 
 export default function AdminPage() {
   const { empleado } = useAuthStore()
-  const [exportando, setExportando] = useState(false)
-  const queryClient  = useQueryClient()
+  const [exportando,       setExportando]       = useState(false)
+  const queryClient = useQueryClient()
   const [solicitudVer,     setSolicitudVer]     = useState<SolicitudVacaciones | null>(null)
   const [solicitudRRHH,    setSolicitudRRHH]    = useState<SolicitudVacaciones | null>(null)
   const [solicitudRechazo, setSolicitudRechazo] = useState<SolicitudVacaciones | null>(null)
   const [solicitudReporte, setSolicitudReporte] = useState<SolicitudVacaciones | null>(null)
   const [filtroEstado,     setFiltroEstado]     = useState('')
 
+  // ── Roles del usuario actual ─────────────────────────────────────────────
+  const esAdmin      = tieneRol(empleado, 'admin')
+  const esRRHH       = tieneRol(empleado, 'hr', 'admin')
+  const esSupervisor = tieneRol(empleado, 'supervisor', 'admin')
+
+  // Título del panel según rol
+  const tituloPabel = esRRHH && !esAdmin
+    ? 'Recursos Humanos'
+    : esAdmin
+    ? 'Administración'
+    : 'Supervisión'
+
+  // ── Queries ───────────────────────────────────────────────────────────────
   const { data: solicitudes = [], isLoading } = useQuery({
     queryKey: ['solicitudes-admin'],
     queryFn:  solicitudesApi.lista,
@@ -68,7 +86,7 @@ export default function AdminPage() {
   })
 
   const solicitudesFiltradas = filtroEstado
-    ? solicitudes.filter(s => s.estado === filtroEstado)
+    ? solicitudes.filter((s: SolicitudVacaciones) => s.estado === filtroEstado)
     : solicitudes
 
   if (isLoading) {
@@ -86,12 +104,22 @@ export default function AdminPage() {
         {/* Encabezado */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <h1 className="text-lg font-bold text-gray-900">
-            Panel de {empleado?.role === 'hr' || empleado?.role === 'rrhh' ? 'Recursos Humanos' : 
-                      empleado?.role === 'admin' ? 'Administración' : 'Supervisión'}
+            Panel de {tituloPabel}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             Gestione las solicitudes de vacaciones de su área
           </p>
+          {/* Mostrar roles activos del usuario */}
+          <div className="mt-2 flex gap-2 flex-wrap">
+            {Array.isArray(empleado?.roles) && empleado.roles.map((r: string) => (
+              <span
+                key={r}
+                className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
+              >
+                {r === 'hr' ? 'RRHH' : r.charAt(0).toUpperCase() + r.slice(1)}
+              </span>
+            ))}
+          </div>
         </div>
 
         {/* Filtros */}
@@ -111,8 +139,8 @@ export default function AdminPage() {
             <span className="text-sm text-gray-500">{solicitudesFiltradas.length} solicitudes</span>
           </div>
 
-          {/* Botón exportar Excel (solo HR/Admin) */}
-          {empleado && ['hr', 'admin'].includes(empleado.role) && (
+          {/* ✅ CORREGIDO: era empleado.role ahora es tieneRol() */}
+          {esRRHH && (
             <button
               onClick={async () => {
                 setExportando(true)
@@ -150,8 +178,8 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {solicitudesFiltradas.map((sol) => {
-                  const config = ESTADO_CONFIG[sol.estado] || { label: sol.estado, color: 'bg-gray-100 text-gray-700' }
+                {solicitudesFiltradas.map((sol: SolicitudVacaciones) => {
+                  const config = ESTADO_CONFIG[sol.estado] ?? { label: sol.estado, color: 'bg-gray-100 text-gray-700' }
                   return (
                     <tr key={sol.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
@@ -170,6 +198,8 @@ export default function AdminPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
+
+                          {/* Ver siempre disponible */}
                           <button
                             onClick={() => setSolicitudVer(sol)}
                             className="rounded-lg border border-gray-200 px-3 py-1 text-xs text-gray-700 hover:bg-gray-100"
@@ -177,8 +207,8 @@ export default function AdminPage() {
                             Ver
                           </button>
 
-                          {/* Botones supervisor */}
-                          {empleado?.role === 'supervisor' && sol.estado === 'pendiente_supervisor' && (
+                          {/* ✅ CORREGIDO: Botones supervisor — era empleado?.role === 'supervisor' */}
+                          {esSupervisor && sol.estado === 'pendiente_supervisor' && (
                             <>
                               <button
                                 onClick={() => aprobarSupervisor({ id: sol.id })}
@@ -197,8 +227,8 @@ export default function AdminPage() {
                             </>
                           )}
 
-                          {/* Botón RRHH */}
-                          {(empleado?.role === 'hr' || empleado?.role === 'rrhh') && sol.estado === 'pendiente_rrhh' && (
+                          {/* ✅ CORREGIDO: Botón RRHH — era empleado?.role === 'hr' */}
+                          {esRRHH && sol.estado === 'pendiente_rrhh' && (
                             <button
                               onClick={() => setSolicitudRRHH(sol)}
                               className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
@@ -207,34 +237,6 @@ export default function AdminPage() {
                             </button>
                           )}
 
-                          {/* Admin puede hacer todo */}
-                          {empleado?.role === 'admin' && sol.estado === 'pendiente_supervisor' && (
-                            <>
-                              <button
-                                onClick={() => aprobarSupervisor({ id: sol.id })}
-                                disabled={aprobandoSup}
-                                className="rounded-lg bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                              >
-                                Aprobar
-                              </button>
-                              <button
-                                onClick={() => setSolicitudRechazo(sol)}
-                                disabled={rechazandoSup}
-                                className="rounded-lg border border-red-300 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
-                              >
-                                Rechazar
-                              </button>
-                            </>
-                          )}
-
-                          {empleado?.role === 'admin' && sol.estado === 'pendiente_rrhh' && (
-                            <button
-                              onClick={() => setSolicitudRRHH(sol)}
-                              className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
-                            >
-                              Validar
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>

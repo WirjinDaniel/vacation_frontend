@@ -1,5 +1,6 @@
-'use client'
-// src/app/(administrador)/administrador/empleados/page.tsx — Gestión de empleados
+// ...existing code...
+"use client"
+import type { Empleado, Rol } from '@/types/index'
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -10,7 +11,6 @@ import {
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { empleadosApi } from '@/lib/api'
-import type { Empleado } from '@/types'
 import ModalAsignarRoles from '@/components/modals/ModalAsignarRoles'
 
 const ROLES = [
@@ -30,7 +30,7 @@ export const ROLE_CONFIG = {
 }
 
 export default function EmpleadosAdminPage() {
-  const [filtroRol, setFiltroRol] = useState('')
+  const [filtroRol, setFiltroRol] = useState<Rol | ''>('')
   const [filtroBusqueda, setFiltroBusqueda] = useState('')
   const [filtroDepartamento, setFiltroDepartamento] = useState('')
   const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState<Empleado | null>(null)
@@ -46,7 +46,7 @@ export default function EmpleadosAdminPage() {
 
   // Filtrar empleados
   const empleadosFiltrados = empleados.filter((emp) => {
-    const matchRol = !filtroRol || (Array.isArray(emp.roles) && emp.roles.includes(filtroRol))
+    const matchRol = !filtroRol || (Array.isArray(emp.roles) && emp.roles.includes(filtroRol as Rol))
     const matchDept = !filtroDepartamento || emp.departamento === filtroDepartamento
     const matchBusqueda = !filtroBusqueda || 
       emp.nombre?.toLowerCase().includes(filtroBusqueda.toLowerCase()) ||
@@ -61,7 +61,7 @@ export default function EmpleadosAdminPage() {
   }
 
   // Guardar roles
-  const handleGuardarRoles = async (roles: string[]) => {
+  const handleGuardarRoles = async (roles: Rol[]) => {
     if (!empleadoSeleccionado) return
     setGuardandoRoles(true)
     try {
@@ -156,7 +156,7 @@ export default function EmpleadosAdminPage() {
           <div className="relative">
             <select
               value={filtroRol}
-              onChange={(e) => setFiltroRol(e.target.value)}
+              onChange={(e) => setFiltroRol(e.target.value as Rol)}
               className="pl-4 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:border-purple-500 focus:ring-1 focus:ring-purple-500 appearance-none bg-white"
             >
               {ROLES.map((r) => (
@@ -266,9 +266,14 @@ export default function EmpleadosAdminPage() {
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${roleConfig.color}`}>
-                          {roleConfig.label}
-                        </span>
+                        {emp.roles.map(role => {
+                          const config = ROLE_CONFIG[role] || { label: role, color: 'bg-gray-100 text-gray-700' }
+                          return (
+                            <span key={role} className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${config.color}`}>
+                              {config.label}
+                            </span>
+                          )
+                        })}
                       </td>
                     </tr>
                   )

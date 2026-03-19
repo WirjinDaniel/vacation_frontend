@@ -24,7 +24,7 @@ export default function AdministradorLayout({ children }: { children: React.Reac
       router.push('/auth/login')
       return
     }
-    if (empleado.role !== 'hr' && empleado.role !== 'rrhh' && empleado.role !== 'admin') {
+    if (!empleado.roles || (!empleado.roles.includes('hr') && !empleado.roles.includes('rrhh') && !empleado.roles.includes('admin'))) {
       router.push('/')
     }
   }, [empleado, modoAcceso, router])

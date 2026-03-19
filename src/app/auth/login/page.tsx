@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { User, Users, Shield, CalendarDays, CheckSquare, Lock } from 'lucide-react'
+import { CalendarDays, CheckSquare, Shield, Lock } from 'lucide-react'
 import { useAuthStore, ModoAcceso } from '@/store/authStore'
 
 const schema = z.object({
@@ -51,59 +51,82 @@ export default function LoginPage() {
     }
   }
 
-  // Opciones disponibles según rol
-  const getOpcionesAcceso = () => {
-    if (!empleado) return []
-    
-    const opciones: { modo: ModoAcceso; titulo: string; descripcion: string; icono: React.ReactNode; color: string; habilitado: boolean }[] = []
-    
-    // Todos pueden acceder como empleado
-    opciones.push({
-      modo: 'empleado',
-      titulo: 'Empleado',
-      descripcion: 'Solicita y consulta sus propias vacaciones',
-      icono: <CalendarDays className="h-6 w-6" />,
-      color: 'bg-blue-50 border-blue-200 hover:bg-blue-100',
-      habilitado: true,
-    })
-    
-    // Supervisor
-    const esSupervisor = empleado.role === 'supervisor' || empleado.role === 'admin' || empleado.role === 'hr' || empleado.role === 'rrhh'
-    opciones.push({
-      modo: 'supervisor',
-      titulo: 'Supervisor',
-      descripcion: 'Aprueba o rechaza solicitudes de su equipo',
-      icono: <CheckSquare className="h-6 w-6" />,
-      color: esSupervisor
-        ? 'bg-green-50 border-green-200 hover:bg-green-100' 
-        : 'bg-gray-100 border-gray-200',
-      habilitado: esSupervisor,
-    })
-    
-    // Administrador
-    const esAdmin = empleado.role === 'hr' || empleado.role === 'rrhh' || empleado.role === 'admin'
-    opciones.push({
-      modo: 'admin',
-      titulo: 'Administrador',
-      descripcion: 'Control total del sistema de vacaciones',
-      icono: <Shield className="h-6 w-6" />,
-      color: esAdmin 
-        ? 'bg-purple-50 border-purple-200 hover:bg-purple-100' 
-        : 'bg-gray-100 border-gray-200',
-      habilitado: esAdmin,
-    })
-    
-    return opciones
+  // ── Helper: verificar si el empleado tiene alguno de los roles ────────────
+  const tieneRol = (...keys: string[]) => {
+    if (!empleado?.roles || !Array.isArray(empleado.roles)) return false
+    return keys.some(k => empleado.roles.includes(k as any))
   }
 
-  // Si debe mostrar selector de modo
+  // ── Opciones disponibles según roles del empleado ─────────────────────────
+  const getOpcionesAcceso = () => {
+    if (!empleado) return []
+
+    // ✅ CORREGIDO: verificación correcta con array de roles
+    const esSupervisor = tieneRol('supervisor', 'hr', 'rrhh', 'admin')
+    const esAdmin      = tieneRol('hr', 'rrhh', 'admin')
+
+    return [
+      {
+        modo:        'empleado' as ModoAcceso,
+        titulo:      'Empleado',
+        descripcion: 'Solicita y consulta sus propias vacaciones',
+        icono:       <CalendarDays className="h-6 w-6" />,
+        habilitado:  true,
+        colorBg:     'bg-blue-50 border-blue-200 hover:bg-blue-100',
+        colorIcono:  'bg-blue-100 text-blue-600',
+        colorBadge:  'bg-blue-100 text-blue-700',
+        nivel:       'Nivel básico',
+      },
+      {
+        modo:        'supervisor' as ModoAcceso,
+        titulo:      'Supervisor',
+        descripcion: 'Aprueba o rechaza solicitudes de su equipo',
+        icono:       <CheckSquare className="h-6 w-6" />,
+        habilitado:  esSupervisor,
+        colorBg:     'bg-green-50 border-green-200 hover:bg-green-100',
+        colorIcono:  'bg-green-100 text-green-600',
+        colorBadge:  'bg-green-100 text-green-700',
+        nivel:       'Nivel intermedio',
+      },
+      {
+        modo:        'admin' as ModoAcceso,
+        titulo:      'Administrador',
+        descripcion: 'Control total del sistema de vacaciones',
+        icono:       <Shield className="h-6 w-6" />,
+        habilitado:  esAdmin,
+        colorBg:     'bg-purple-50 border-purple-200 hover:bg-purple-100',
+        colorIcono:  'bg-purple-100 text-purple-600',
+        colorBadge:  'bg-purple-100 text-purple-700',
+        nivel:       'Nivel total',
+      },
+    ]
+  }
+
+  // ── Pantalla de selección de modo ─────────────────────────────────────────
   if (mostrarSelector && empleado) {
     const opciones = getOpcionesAcceso()
-    
+
+    // ✅ CORREGIDO: mostrar roles como texto legible (era empleado.roles directo)
+    const rolesTexto = Array.isArray(empleado.roles)
+      ? empleado.roles
+          .map(r => {
+            const mapa: Record<string, string> = {
+              empleado:   'Empleado',
+              supervisor: 'Supervisor',
+              hr:         'RRHH',
+              rrhh:       'RRHH',
+              admin:      'Administrador',
+            }
+            return mapa[r] ?? r
+          })
+          .filter((v, i, arr) => arr.indexOf(v) === i) // eliminar duplicados
+          .join(', ')
+      : String(empleado.roles)
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="w-full max-w-3xl rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
-          
+
           {/* Encabezado */}
           <div className="text-center mb-8">
             <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
@@ -123,50 +146,48 @@ export default function LoginPage() {
                 onClick={() => opcion.habilitado && handleSeleccionarModo(opcion.modo)}
                 disabled={!opcion.habilitado}
                 className={`relative flex flex-col items-center p-6 rounded-xl border-2 transition-all ${
-                  opcion.habilitado 
-                    ? `${opcion.color} cursor-pointer` 
+                  opcion.habilitado
+                    ? `${opcion.colorBg} cursor-pointer`
                     : 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-60'
                 }`}
               >
+                {/* Candado si no está habilitado */}
                 {!opcion.habilitado && (
                   <div className="absolute top-2 right-2">
                     <Lock className="h-4 w-4 text-gray-400" />
                   </div>
                 )}
+
+                {/* Ícono */}
                 <div className={`p-3 rounded-full mb-3 ${
-                  opcion.habilitado 
-                    ? opcion.modo === 'empleado' ? 'bg-blue-100 text-blue-600'
-                      : opcion.modo === 'supervisor' ? 'bg-green-100 text-green-600'
-                      : 'bg-purple-100 text-purple-600'
-                    : 'bg-gray-200 text-gray-400'
+                  opcion.habilitado ? opcion.colorIcono : 'bg-gray-200 text-gray-400'
                 }`}>
                   {opcion.icono}
                 </div>
+
                 <h3 className="font-semibold text-gray-900">{opcion.titulo}</h3>
                 <p className="text-xs text-gray-500 text-center mt-1">{opcion.descripcion}</p>
+
+                {/* Badge de nivel */}
                 <span className={`mt-3 text-xs px-2 py-0.5 rounded-full ${
-                  opcion.habilitado 
-                    ? opcion.modo === 'empleado' ? 'bg-blue-100 text-blue-700'
-                      : opcion.modo === 'supervisor' ? 'bg-green-100 text-green-700'
-                      : 'bg-purple-100 text-purple-700'
-                    : 'bg-gray-200 text-gray-500'
+                  opcion.habilitado ? opcion.colorBadge : 'bg-gray-200 text-gray-500'
                 }`}>
-                  {opcion.modo === 'empleado' ? 'Nivel básico' 
-                    : opcion.modo === 'supervisor' ? 'Nivel intermedio' 
-                    : 'Nivel total'}
+                  {opcion.nivel}
                 </span>
               </button>
             ))}
           </div>
 
+          {/* ✅ CORREGIDO: era {empleado.roles} que mostraba [object Object] */}
           <p className="text-center text-xs text-gray-400 mt-6">
-            Rol base: <span className="font-medium">{empleado.role}</span>
+            Rol base: <span className="font-medium text-gray-600">{rolesTexto}</span>
           </p>
         </div>
       </div>
     )
   }
 
+  // ── Pantalla de login ─────────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
@@ -227,7 +248,10 @@ export default function LoginPage() {
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition"
           >
             {isLoading ? (
-              <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Ingresando...</>
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Ingresando...
+              </>
             ) : 'Ingresar al sistema'}
           </button>
         </form>
