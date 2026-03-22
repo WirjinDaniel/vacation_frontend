@@ -1,7 +1,7 @@
 // src/types/index.ts — Tipos TypeScript del sistema de vacaciones INABIE
 // Estructura simplificada según formulario oficial
 
-export type Rol = 'employee' | 'supervisor' | 'hr' | 'rrhh' | 'admin'
+export type Rol = 'empleado' | 'supervisor' | 'hr' | 'rrhh' | 'admin'
 
 export type EstadoSolicitud =
   | 'pendiente_supervisor'

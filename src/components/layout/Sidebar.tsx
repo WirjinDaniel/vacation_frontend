@@ -67,7 +67,7 @@ export default function Sidebar() {
 
   const filteredItems = navItems.filter(item => {
     if (!item.roles) return true
-    return empleado && item.roles.includes(empleado.role)
+    return empleado && item.roles.some(role => empleado.roles.includes('admin'))
   })
 
   return (
@@ -133,14 +133,14 @@ export default function Sidebar() {
             </p>
             <span className={`
               inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium
-              ${empleado.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                empleado.role === 'hr' || empleado.role === 'rrhh' ? 'bg-green-100 text-green-700' :
-                empleado.role === 'supervisor' ? 'bg-blue-100 text-blue-700' :
+              ${empleado.roles.includes('admin') ? 'bg-purple-100 text-purple-700' :
+                empleado.roles.includes('hr') || empleado.roles.includes('rrhh') ? 'bg-green-100 text-green-700' :
+                empleado.roles.includes('supervisor') ? 'bg-blue-100 text-blue-700' :
                 'bg-gray-100 text-gray-600'}
             `}>
-              {empleado.role === 'admin' ? 'Administrador' :
-               empleado.role === 'hr' || empleado.role === 'rrhh' ? 'Recursos Humanos' :
-               empleado.role === 'supervisor' ? 'Supervisor' : 'Empleado'}
+              {empleado.roles.includes('admin') ? 'Administrador' :
+               empleado.roles.includes('hr') || empleado.roles.includes('rrhh') ? 'Recursos Humanos' :
+               empleado.roles.includes('supervisor') ? 'Supervisor' : 'Empleado'}
             </span>
           </div>
         )}
