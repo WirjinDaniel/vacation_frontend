@@ -20,3 +20,8 @@ This is the frontend of a Vacation Management System developed with Next.js, Rea
 ## Notes
 
 This repository contains only the frontend application. The backend is private.
+
+## Author
+
+Daniel Sanchez
+GitHub: https://github.com/WirjinDaniel
